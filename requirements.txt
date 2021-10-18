@@ -1,3 +1,8 @@
-pyTelegramBotAPI == 3.8.3
-requests == 2.26.0
-keyboa == 3.0.1
+certifi==2021.10.8
+charset-normalizer==2.0.7
+idna==3.3
+keyboa==3.0.1
+pyTelegramBotAPI==3.8.3
+requests==2.26.0
+telebot-calendar==1.2
+urllib3==1.26.7
