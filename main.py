@@ -21,8 +21,8 @@ def get_person_id(access_token):
     return person_id
 
 
-def get_homework(access_token, person_id, school_id):
-    date = time.strftime('%Y-%m-%d', time.gmtime(time.time() + 86400))
+def get_homework(date, access_token, person_id, school_id):
+
     print(date)
     url = f'https://api.school.mosreg.ru/v2.0/persons/{person_id}/school/{school_id}/homeworks?startDate={date}&endDate={date}'
     headers = {
@@ -55,10 +55,11 @@ def get_homework(access_token, person_id, school_id):
     return homework
 
 
-def main(person):
+def main(person, date):
     global persons_ids
     if person == 'Stepan':
-        access_token = os.getenv("SPTOKEN")
+        access_token = "KHL3Y4DQ8DyqDix1atnnQTAGzqChdAG1"
+        # access_token = os.getenv("SPTOKEN")
     else:
         access_token = 'SergeyToken'
 
@@ -70,5 +71,5 @@ def main(person):
         print(persons_ids)
     else:
         person_id = persons_ids.get(person)
-    result = get_homework(access_token=access_token, person_id=person_id, school_id=school_id)
+    result = get_homework(date, access_token=access_token, person_id=person_id, school_id=school_id)
     return result

@@ -1,42 +1,49 @@
 import os
 import datetime
 import telebot
+from telebot.types import CallbackQuery
 
 from utils.telegramcalendar import create_calendar
 from main import main
 
 
-Token = os.getenv('TELETOKEN')
+# Token = os.getenv('TELETOKEN')
+Token = '2083449644:AAGI3iS46ArAigv6D_saGUSYmR8_2LyguvA'
 telegram_api_url = 'https://api.telegram.org/bot'
 bot = telebot.TeleBot(Token, parse_mode=None)
 current_shown_dates = {}
 son = ['']
 
+#
+# @bot.message_handler(commands=['start'])
+# def start(message):
+#     bot.reply_to(message, "Привет, {}! Хочешь узнать домашку?"
+#                           "\nДля получения информации нажмите /help".format(message.chat.first_name))
+
 
 @bot.message_handler(commands=['start'])
-def start(message):
-    bot.reply_to(message, "Привет, {}! Хочешт узнать домашку?"
-                          "\nДля получения информации нажмите /help".format(message.chat.first_name))
+def exchange_command(message):
+    keyboard = telebot.types.InlineKeyboardMarkup()
+    keyboard.row(
+        telebot.types.InlineKeyboardButton("Степан", callback_data="stepan"),
+        telebot.types.InlineKeyboardButton(
+            "Сергей", callback_data="sergey"
+        ),
+    )
+    bot.send_message(
+        message.chat.id, "Чью домашку показать?", reply_markup=keyboard
+    )
 
 
-@bot.message_handler(commands=['help'])
-def view_helper(message):
-    bot.reply_to(message, """
-    Помощь по командам бота:
-    1. /stepan - Домашние задания для Степана.
-        
-    2. /sergey - Домашние задания для Сергея   
-    """)
-
-
-@bot.message_handler(commands=['stepan', 'sergey'])
-def commands(message):
-    if message.text == '/stepan':
-        bot.send_message(message.chat.id, 'Домашнее задание для Степана')
-        stepan(message)
-    elif message.text == '/sergey':
-        bot.send_message(message.chat.id, "Домашнее задание для Сергея")
-        # sergey(message)
+@bot.callback_query_handler(func=lambda c: c.data.startswith('s'))
+def commands(callback_query: CallbackQuery):
+    command = callback_query.data
+    if command == 'stepan':
+        answer = bot.send_message(callback_query.from_user.id, 'Домашнее задание для Степана')
+        stepan(answer)
+    elif command == 'sergey':
+        answer = bot.send_message(callback_query.from_user.id, "Домашнее задание для Сергея")
+        # sergey(answer)
 
 
 @bot.message_handler()
@@ -75,8 +82,8 @@ def handle_day_query(call):
     if saved_date is not None:
 
         day = call.data[last_sep:]
-        date = datetime.datetime(int(saved_date[0]), int(saved_date[1]), int(day), 0, 0, 0)
-        result = main(son[0].strip())
+        date = str(datetime.datetime(int(saved_date[0]), int(saved_date[1]), int(day)).date())
+        result = main(son[0].strip(), date)
         bot.send_message(chat_id=chat_id, text="Лови домашку!")
         bot.send_message(chat_id=chat_id, text=result, parse_mode='Markdown')
 
