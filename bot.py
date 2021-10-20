@@ -4,11 +4,10 @@ import telebot
 from telebot.types import CallbackQuery
 
 from utils.telegramcalendar import create_calendar
-from main import main
+from main import get_homework, get_marks_per_subject
 
-
-# Token = os.getenv('TELETOKEN')
-Token = '2083449644:AAGI3iS46ArAigv6D_saGUSYmR8_2LyguvA'
+Token = os.getenv('TELETOKEN')
+# Token = '2083449644:AAGI3iS46ArAigv6D_saGUSYmR8_2LyguvA'
 telegram_api_url = 'https://api.telegram.org/bot'
 bot = telebot.TeleBot(Token, parse_mode=None)
 current_shown_dates = {}
@@ -25,38 +24,45 @@ son = ['']
 def exchange_command(message):
     keyboard = telebot.types.InlineKeyboardMarkup()
     keyboard.row(
-        telebot.types.InlineKeyboardButton("Степан", callback_data="stepan"),
-        telebot.types.InlineKeyboardButton(
-            "Сергей", callback_data="sergey"
-        ),
+        telebot.types.InlineKeyboardButton("Степан", callback_data="son stepan"),
+        telebot.types.InlineKeyboardButton("Сергей", callback_data="son sergey"),
+        telebot.types.InlineKeyboardButton("Статистика", callback_data="stat"),
     )
     bot.send_message(
-        message.chat.id, "Чью домашку показать?", reply_markup=keyboard
+        message.chat.id, "Что показать?", reply_markup=keyboard
     )
 
 
-@bot.callback_query_handler(func=lambda c: c.data.startswith('s'))
+@bot.callback_query_handler(func=lambda c: c.data.startswith('son'))
 def commands(callback_query: CallbackQuery):
     command = callback_query.data
-    if command == 'stepan':
+    if 'stepan' in command:
         answer = bot.send_message(callback_query.from_user.id, 'Домашнее задание для Степана')
         stepan(answer)
-    elif command == 'sergey':
+    elif 'sergey' in command:
         answer = bot.send_message(callback_query.from_user.id, "Домашнее задание для Сергея")
-        # sergey(answer)
+        sergey(answer)
+
+
+@bot.callback_query_handler(func=lambda c: c.data.startswith('stat'))
+def commands(callback_query: CallbackQuery):
+    result = get_marks_per_subject('Stepan', None)
+    bot.send_message(callback_query.from_user.id, 'Оценки за обучение для Степана')
+    bot.send_message(chat_id=callback_query.from_user.id, text=result, parse_mode='Markdown')
 
 
 @bot.message_handler()
 def wrong_command(message):
-    bot.reply_to(message, 'Вы ввели неправильную комманду, введите /help для получения информации')
+    bot.reply_to(message, 'Вы ввели неправильную комманду, введите /start для начала работы')
 
 
 def stepan(message):
     son[0] = 'Stepan'
     handle_calendar_command(message)
 
-# def sergey(message):
-#     pass
+
+def sergey(message):
+    bot.reply_to(message, 'Не умею выводить домашку для Сергея=((((')
 
 
 @bot.message_handler()
@@ -83,7 +89,7 @@ def handle_day_query(call):
 
         day = call.data[last_sep:]
         date = str(datetime.datetime(int(saved_date[0]), int(saved_date[1]), int(day)).date())
-        result = main(son[0].strip(), date)
+        result = get_homework(son[0].strip(), date)
         bot.send_message(chat_id=chat_id, text="Лови домашку!")
         bot.send_message(chat_id=chat_id, text=result, parse_mode='Markdown')
 
