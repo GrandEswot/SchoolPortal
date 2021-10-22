@@ -4,44 +4,87 @@ import telebot
 from telebot.types import CallbackQuery
 
 from utils.telegramcalendar import create_calendar
-from main import get_homework, get_marks_per_subject
+from main import get_homework, get_marks_per_subject, get_shedules
 
 Token = os.getenv('TELETOKEN')
-# Token = '2083449644:AAGI3iS46ArAigv6D_saGUSYmR8_2LyguvA'
 telegram_api_url = 'https://api.telegram.org/bot'
 bot = telebot.TeleBot(Token, parse_mode=None)
 current_shown_dates = {}
-son = ['']
-
-#
-# @bot.message_handler(commands=['start'])
-# def start(message):
-#     bot.reply_to(message, "Привет, {}! Хочешь узнать домашку?"
-#                           "\nДля получения информации нажмите /help".format(message.chat.first_name))
+son_name = ['']
 
 
 @bot.message_handler(commands=['start'])
 def exchange_command(message):
     keyboard = telebot.types.InlineKeyboardMarkup()
     keyboard.row(
-        telebot.types.InlineKeyboardButton("Степан", callback_data="son stepan"),
-        telebot.types.InlineKeyboardButton("Сергей", callback_data="son sergey"),
-        telebot.types.InlineKeyboardButton("Статистика", callback_data="stat"),
+        telebot.types.InlineKeyboardButton("Расписание", callback_data="shedules"),
+        telebot.types.InlineKeyboardButton("Домашняя работа", callback_data="homework"),
+        telebot.types.InlineKeyboardButton("Оценки. Статистика", callback_data="statistic")
     )
     bot.send_message(
         message.chat.id, "Что показать?", reply_markup=keyboard
     )
 
 
+@bot.callback_query_handler(func=lambda c: c.data.startswith('shedules'))
+def commands(callback_query: CallbackQuery):
+    keyboard = telebot.types.InlineKeyboardMarkup()
+    keyboard.row(
+       telebot.types.InlineKeyboardButton('Степан', callback_data='son shedules stepan'),
+       telebot.types.InlineKeyboardButton('Сергей', callback_data='son shedules sergey')
+    )
+    bot.send_message(callback_query.from_user.id, "Для кого вывести расписание?", reply_markup=keyboard)
+
+
+@bot.callback_query_handler(func=lambda c: c.data.startswith('homework'))
+def commands(callback_query: CallbackQuery):
+    keyboard = telebot.types.InlineKeyboardMarkup()
+    keyboard.row(
+       telebot.types.InlineKeyboardButton('Степан', callback_data='son homework stepan'),
+       telebot.types.InlineKeyboardButton('Сергей', callback_data='son homework sergey')
+    )
+    bot.send_message(callback_query.from_user.id, "Для кого вывести домашнее задание?", reply_markup=keyboard)
+
+
+@bot.callback_query_handler(func=lambda c: c.data.startswith('statistic'))
+def commands(callback_query: CallbackQuery):
+    keyboard = telebot.types.InlineKeyboardMarkup()
+    keyboard.row(
+        telebot.types.InlineKeyboardButton('Степан', callback_data='son statistic stepan'),
+        telebot.types.InlineKeyboardButton('Сергей', callback_data='son statistic sergey')
+    )
+    bot.send_message(callback_query.from_user.id, "Для кого вывести статистику по оценкам?", reply_markup=keyboard)
+
+
 @bot.callback_query_handler(func=lambda c: c.data.startswith('son'))
 def commands(callback_query: CallbackQuery):
     command = callback_query.data
-    if 'stepan' in command:
+    if 'homework stepan' in command:
         answer = bot.send_message(callback_query.from_user.id, 'Домашнее задание для Степана')
-        stepan(answer)
-    elif 'sergey' in command:
+        homework(answer, son='stepan')
+    elif 'homework sergey' in command:
         answer = bot.send_message(callback_query.from_user.id, "Домашнее задание для Сергея")
-        sergey(answer)
+        homework(answer, son='sergey')
+    elif 'shedules stepan' in command:
+        answer = bot.send_message(callback_query.from_user.id, "Расписание уроков на завтра для Степана")
+        shedules(answer, son='stepan')
+    elif 'shedules sergey' in command:
+        answer = bot.send_message(callback_query.from_user.id, "Расписание уроков на завтра для Сергея")
+        shedules(answer, son='sergey')
+    elif 'statistic stepan' in command:
+        answer = bot.send_message(callback_query.from_user.id, "Оценки Степана")
+        statistic(answer, son='stepan')
+    elif 'statistic sergey' in command:
+        answer = bot.send_message(callback_query.from_user.id, "Оценки Сергея")
+        statistic(answer, son='sergey')
+
+
+def statistic(message, son):
+    son_name[0] = son
+    date = datetime.time()
+    result = get_marks_per_subject(son_name[0].strip(), date)
+    bot.send_message(message.chat.id, 'Оценочки')
+    bot.send_message(chat_id=message.chat.id, text=result, parse_mode='Markdown')
 
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith('stat'))
@@ -56,13 +99,21 @@ def wrong_command(message):
     bot.reply_to(message, 'Вы ввели неправильную комманду, введите /start для начала работы')
 
 
-def stepan(message):
-    son[0] = 'Stepan'
+def homework(message, son):
+    son_name[0] = son
     handle_calendar_command(message)
 
 
-def sergey(message):
-    bot.reply_to(message, 'Не умею выводить домашку для Сергея=((((')
+def shedules(message, son):
+    son_name[0] = son
+    date = '1'
+    result = get_shedules(son_name[0].strip(), date)
+    if len(result) > 0:
+        print(len(result))
+        bot.send_message(chat_id=message.chat.id, text="Вот и расписание подоспело!")
+        bot.send_message(chat_id=message.chat.id, text=result, parse_mode='Markdown')
+    else:
+        bot.send_message(chat_id=message.chat.id, text="А завтра нет уроков=)")
 
 
 @bot.message_handler()
@@ -89,12 +140,15 @@ def handle_day_query(call):
 
         day = call.data[last_sep:]
         date = str(datetime.datetime(int(saved_date[0]), int(saved_date[1]), int(day)).date())
-        result = get_homework(son[0].strip(), date)
-        bot.send_message(chat_id=chat_id, text="Лови домашку!")
-        bot.send_message(chat_id=chat_id, text=result, parse_mode='Markdown')
-
+        result = get_homework(son_name[0].strip(), date)
+        print(result)
+        # print(len(result))
+        if len(result) > 0:
+            bot.send_message(chat_id=chat_id, text="Лови домашку!")
+            bot.send_message(chat_id=chat_id, text=result, parse_mode='Markdown')
+        else:
+            bot.send_message(chat_id=chat_id, text="Наверное дата неправильная. ДЗ не обнаружено")
     else:
-        # add your reaction for shown an error
         pass
 
 

@@ -10,9 +10,9 @@ persons_ids = {}
 def prepare(func):
     def wrapped(person, date):
         global persons_ids
-        if person == 'Stepan':
-            access_token = "KHL3Y4DQ8DyqDix1atnnQTAGzqChdAG1"
-            # access_token = os.getenv("SPTOKEN")
+        if person == 'stepan':
+
+            access_token = os.getenv("SPTOKEN")
         else:
             access_token = "27YtgVjGSibtpF4yP2RdgtF0piUrhWeW"
 
@@ -30,10 +30,9 @@ def prepare(func):
 
 
 def get_person_id(access_token):
-    # access_token = "KHL3Y4DQ8DyqDix1atnnQTAGzqChdAG1" # stepan
-    # access_token = "27YtgVjGSibtpF4yP2RdgtF0piUrhWeW" # sergey
 
-    url = 'https://api.school.mosreg.ru/v2.0/users/1000006512438'
+
+    url = 'https://api.school.mosreg.ru/v2.0/users/me'
     headers = {
         "accept": "application/json",
         'Access-Token': access_token,
@@ -64,7 +63,8 @@ def get_homework(person, date, access_token, person_id, school_id):
         try:
             homeworks = json.loads(s.text).get('works')
             subjects = json.loads(s.text).get('subjects')
-
+            if len(homeworks) == 0:
+                return 'Неправильно выбрана дата. ДЗ не найдено'
             for task in homeworks:
                 subject_id = task.get('subjectId')
                 for subject in subjects:
@@ -136,4 +136,40 @@ def get_marks_per_subject(person, date, access_token, person_id, school_id):
     return result
 
 
-# print(get_marks_per_subject('Stepan', None))
+def get_edugroup(person_id, access_token):
+    url = f'https://api.school.mosreg.ru/v2.0/persons/{person_id}/edu-groups'
+    headers = {
+        "accept": "application/json",
+        'Access-Token': access_token,
+    }
+
+    s = requests.get(url=url, headers=headers)
+    edu_group = json.loads(s.text)[2].get('id_str')
+    return edu_group
+
+
+@prepare
+def get_shedules(person, date, access_token, person_id, school_id):
+    lessons = []
+    schedule = ''
+    group_id = get_edugroup(person_id, access_token)
+    t = time.gmtime()
+    date = f"{t[0]}-{t[1]}-{t[2] + 1}"
+    url = f'https://api.school.mosreg.ru/v2.0/persons/{person_id}/groups/{group_id}/schedules?startDate={date}&endDate={date}'
+    headers = {
+        "accept": "application/json",
+        'Access-Token': access_token,
+    }
+
+    s = requests.get(url=url, headers=headers)
+    schedules = json.loads(s.text).get('days')[0].get('lessons')
+    subjects = get_subjects(person_id, access_token)
+    for lesson in schedules:
+        lessons.append(lesson.get('subjectId'))
+    for index, lesson_id in enumerate(lessons):
+        schedule += f'\n{index + 1} - {subjects.get(lesson_id)}'
+
+    return schedule
+
+
+# print(get_shedules('sergey', '1'))
